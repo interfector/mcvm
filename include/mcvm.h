@@ -1,23 +1,13 @@
 #ifndef _ASM_SIM_
 #define _ASM_SIM_
 
-#include <setjmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <memory.h>
 
 #define AFUNC(name) void name( asm_env* env )
 
 typedef struct {
-	/*
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int esi;
-	unsigned int edi;
-
-	unsigned int esp;
-	unsigned int ebp;
-	*/
-
 	unsigned long int regs[8];
 
 	void**	stack;
@@ -64,6 +54,12 @@ AFUNC(inc);
 AFUNC(dec);
 AFUNC(idb);
 AFUNC(rref);
+AFUNC(arithl);
+AFUNC(mull);
+AFUNC(rmadd);
+AFUNC(mradd);
+AFUNC(rmsub);
+AFUNC(mrsub);
 
 static 
 struct assembly InstructionSet[] = {
@@ -79,6 +75,12 @@ struct assembly InstructionSet[] = {
 	{ '\x48', '\x4f', 0, dec },
 	{ '\xfe', 0, 1, idb },
 	{ '\x8b', 0, 2, rref },
+	{ '\x81', 0, 5, arithl },
+	{ '\xf7', 0, 2, mull },
+	{ '\x03', 0, 2, rmadd },
+	{ '\x01', 0, 2, mradd },
+	{ '\x2b', 0, 2, rmsub },
+	{ '\x29', 0, 2, mrsub },
 };
 
 struct assembly getOpcode( unsigned char);

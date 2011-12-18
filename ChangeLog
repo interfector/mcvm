@@ -1,4 +1,5 @@
 2011-08-11 nex <nex@autistici.org>
 
+* sim.c: arithmetic and logic implemented
 * sim.c: it contains all the function of opcodes
 * main.c: it parses the opcodes and executes the related function

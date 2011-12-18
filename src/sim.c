@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <mcvm.h>
 
 int getOffset( unsigned char, unsigned char*, int );
@@ -63,11 +61,11 @@ AFUNC(movr)
 
 	if( off == -1 )
 	{
-		env->current_args = env->current_args & 0x00000000FF;
+		env->current_args = env->current_args & 0x000000FF;
 		env->eip--;
 	} else {
 		offset = (env->current_args & 0x0000FF00) >> 8;
-		env->current_args = env->current_args & 0x00000000FF;
+		env->current_args = env->current_args & 0x000000FF;
 	}
 
 	if( 0xc0 <= env->current_args && env->current_args <= 0xff )
@@ -190,11 +188,11 @@ AFUNC(rref)
 
 	if( off == -1 )
 	{
-		env->current_args = env->current_args & 0x00000000FF;
+		env->current_args = env->current_args & 0x000000FF;
 		env->eip--;
 	} else {
 		offset = (env->current_args & 0x0000FF00) >> 8;
-		env->current_args = env->current_args & 0x00000000FF;
+		env->current_args = env->current_args & 0x000000FF;
 	}
 
 	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
@@ -218,6 +216,371 @@ AFUNC(rref)
 			/*env->regs[ off ] = env->mem_base[ env->regs[ env->current_args - rfooffset[ off ] ] + offset ];*/
 			addr = getAddr( env, env->regs[ env->current_args - rfooffset[ off ] ] + offset, sizeof(int) );
 			env->regs[ off ] = addr;
+		}
+	}
+}
+
+AFUNC(arithl)
+{
+	unsigned char foffset[] = {
+		0xc0,
+		0xc8,
+		0xe0,
+		0xe8,
+		0xf0,
+		0xf8
+	};
+	/*
+	void (*arithmetic[])(asm_env*, unsigned char*,int) = {
+		addl,
+		orl,
+		andl,
+		subl,
+		xorl
+	}; */
+	int off, index;
+	unsigned char* code;
+	unsigned int arg = 0;
+
+	code = getAssembly( env, env->eip, 6 );
+
+#ifdef _DEBUG
+	int i;
+
+	for(i = 0;i < 6;i++)
+		printf("%02x", code[i] );
+
+	putchar('\n');
+#endif
+
+	off = getOffset( code[1], foffset, sizeof(foffset) );
+
+	index = code[1] - foffset[ off ];
+	memcpy( &arg, code + 2, sizeof(int) );
+
+	switch( off ){
+		case 0:
+			env->regs[ index ] += arg;
+			break;
+		case 1:
+			env->regs[ index ] |= arg;
+			break;
+		case 2:
+			env->regs[ index ] &= arg;
+			break;
+		case 3:
+			env->regs[ index ] -= arg;
+			break;
+		case 4:
+			env->regs[ index ] ^= arg;
+			break;
+		default:
+			break;
+	}
+/*	arithmetic[ off ]( env, code, code[1] - foffset[ off ] ); */
+}
+
+AFUNC(mull)
+{
+	unsigned int addr;
+	unsigned int code = env->current_args & 0x000000FF;
+
+	if( 0x60 <= code && code <= 0x68 )
+	{
+		if( env->regs[ env->current_args - 0x60 ] < 0 || env->regs[ env->current_args - 0x60 ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ code - 0x60 ] + ((env->current_args & 0xFF00) >> 8), sizeof(int) );
+			env->regs[ R_EAX ] *= addr;
+		}
+	} else {
+		env->current_args = env->current_args & 0x000000FF;
+		if( 0x20 <= env->current_args && env->current_args <= 0x28 )
+		{
+			if( env->regs[ env->current_args - 0x20 ] < 0 || env->regs[ env->current_args - 0x20 ] > env->mem_size )
+				die( env, "SIGSEGV" );
+			else {
+				addr = getAddr( env, env->regs[ env->current_args - 0x20 ], sizeof(int) );
+				env->regs[ R_EAX ] *= addr;
+			}
+		} else if( 0xe0 <= env->current_args && env->current_args <= 0xe8 ) {
+			env->regs[ R_EAX ] *= env->regs[ env->current_args - 0xe0 ];
+		} else {
+			die( env, "SIGILL" );
+		}
+
+		env->eip--;
+	}
+}
+
+AFUNC(rmadd)
+{
+	unsigned char roffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18,
+		0x20,
+		0x28,
+		0x30,
+		0x38
+	};
+	unsigned char rooffset[] = {
+		0x40,
+		0x48,
+		0x50,
+		0x58,
+		0x60,
+		0x68,
+		0x70,
+		0x78
+	};
+	int off, offset = 0;
+	unsigned int addr;
+
+	off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+	if( off == -1 )
+	{
+		env->current_args = env->current_args & 0x00000000FF;
+		env->eip--;
+	} else {
+		offset = (env->current_args & 0x0000FF00) >> 8;
+		env->current_args = env->current_args & 0x00000000FF;
+	}
+
+	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
+	{
+		off = getOffset( env->current_args, roffset, sizeof(roffset) );
+
+		if( env->regs[ env->current_args - roffset[off] ] < 0 || env->regs[ env->current_args - roffset[off] ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int) );
+			env->regs[ off ] += addr;
+
+		}
+	} else if( 0x40 <= env->current_args && env->current_args <= 0x7f )
+	{
+		off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+		if( env->regs[ env->current_args - rooffset[off] ] + offset < 0 || env->regs[ env->current_args - rooffset[off] ] + offset > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int) );
+			env->regs[ off ] += addr;
+		}
+	}
+}
+
+AFUNC(mradd)
+{
+	unsigned char roffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18,
+		0x20,
+		0x28,
+		0x30,
+		0x38
+	};
+	unsigned char rooffset[] = {
+		0x40,
+		0x48,
+		0x50,
+		0x58,
+		0x60,
+		0x68,
+		0x70,
+		0x78
+	};
+	unsigned char rfoffset[] = {
+		0xc0,
+		0xc8,
+		0xd0,
+		0xd8,
+		0xe0,
+		0xe8,
+		0xf0,
+		0xf8
+	};
+	int off, offset = 0;
+	unsigned int addr;
+
+	off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+	if( off == -1 )
+	{
+		env->current_args = env->current_args & 0x00000000FF;
+		env->eip--;
+	} else {
+		offset = (env->current_args & 0x0000FF00) >> 8;
+		env->current_args = env->current_args & 0x00000000FF;
+	}
+
+	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
+	{
+		off = getOffset( env->current_args, roffset, sizeof(roffset) );
+
+		if( env->regs[ env->current_args - roffset[off] ] < 0 || env->regs[ env->current_args - roffset[off] ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int) );
+			addr += env->regs[ off ];
+			setAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int), addr );
+		}
+	} else if( 0xc0 <= env->current_args && env->current_args <= 0xff ) {
+		off = getOffset( env->current_args, rfoffset, sizeof(rfoffset) );
+
+		env->regs[ env->current_args - rfoffset[ off ] ] += env->regs[ off ];
+	} else if( 0x40 <= env->current_args && env->current_args <= 0x7f )
+	{
+		off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+		if( env->regs[ env->current_args - rooffset[off] ] + offset < 0 || env->regs[ env->current_args - rooffset[off] ] + offset > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int) );
+			addr += env->regs[ off ];
+			setAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int), addr );
+
+		}
+	}
+}
+
+AFUNC(rmsub)
+{
+	unsigned char roffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18,
+		0x20,
+		0x28,
+		0x30,
+		0x38
+	};
+	unsigned char rooffset[] = {
+		0x40,
+		0x48,
+		0x50,
+		0x58,
+		0x60,
+		0x68,
+		0x70,
+		0x78
+	};
+	int off, offset = 0;
+	unsigned int addr;
+
+	off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+	if( off == -1 )
+	{
+		env->current_args = env->current_args & 0x00000000FF;
+		env->eip--;
+	} else {
+		offset = (env->current_args & 0x0000FF00) >> 8;
+		env->current_args = env->current_args & 0x00000000FF;
+	}
+
+	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
+	{
+		off = getOffset( env->current_args, roffset, sizeof(roffset) );
+
+		if( env->regs[ env->current_args - roffset[off] ] < 0 || env->regs[ env->current_args - roffset[off] ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int) );
+			env->regs[ off ] -= addr;
+
+		}
+	} else if( 0x40 <= env->current_args && env->current_args <= 0x7f )
+	{
+		off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+		if( env->regs[ env->current_args - rooffset[off] ] + offset < 0 || env->regs[ env->current_args - rooffset[off] ] + offset > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int) );
+			env->regs[ off ] -= addr;
+		}
+	}
+}
+
+AFUNC(mrsub)
+{
+	unsigned char roffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18,
+		0x20,
+		0x28,
+		0x30,
+		0x38
+	};
+	unsigned char rooffset[] = {
+		0x40,
+		0x48,
+		0x50,
+		0x58,
+		0x60,
+		0x68,
+		0x70,
+		0x78
+	};
+	unsigned char rfoffset[] = {
+		0xc0,
+		0xc8,
+		0xd0,
+		0xd8,
+		0xe0,
+		0xe8,
+		0xf0,
+		0xf8
+	};
+	int off, offset = 0;
+	unsigned int addr;
+
+	off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+	if( off == -1 )
+	{
+		env->current_args = env->current_args & 0x00000000FF;
+		env->eip--;
+	} else {
+		offset = (env->current_args & 0x0000FF00) >> 8;
+		env->current_args = env->current_args & 0x00000000FF;
+	}
+
+	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
+	{
+		off = getOffset( env->current_args, roffset, sizeof(roffset) );
+
+		if( env->regs[ env->current_args - roffset[off] ] < 0 || env->regs[ env->current_args - roffset[off] ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int) );
+			addr -= env->regs[ off ];
+			setAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int), addr );
+		}
+	} else if( 0xc0 <= env->current_args && env->current_args <= 0xff ) {
+		off = getOffset( env->current_args, rfoffset, sizeof(rfoffset) );
+
+		env->regs[ env->current_args - rfoffset[ off ] ] -= env->regs[ off ];
+	} else if( 0x40 <= env->current_args && env->current_args <= 0x7f )
+	{
+		off = getOffset( env->current_args, rooffset, sizeof(rooffset) );
+
+		if( env->regs[ env->current_args - rooffset[off] ] + offset < 0 || env->regs[ env->current_args - rooffset[off] ] + offset > env->mem_size )
+			die( env, "SIGSEGV" );
+		else {
+			addr = getAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int) );
+			addr -= env->regs[ off ];
+			setAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int), addr );
+
 		}
 	}
 }
