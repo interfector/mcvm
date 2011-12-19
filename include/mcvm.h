@@ -61,6 +61,7 @@ AFUNC(mradd);
 AFUNC(rmsub);
 AFUNC(mrsub);
 
+// {'start_range', 'end_range', 'arg_len', 'function_pointer'}
 static 
 struct assembly InstructionSet[] = {
 	{ '\xb0', '\xb3', 1, movb },
