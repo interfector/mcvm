@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <memory.h>
 
+#define indexof( addr, i ) (( addr & (0xFF << (i * 8)) ) >> (i * 8))
 #define AFUNC(name) void name( asm_env* env )
 
 typedef struct {

@@ -1,5 +1,6 @@
 #include <mcvm.h>
 
+
 int getOffset( unsigned char, unsigned char*, int );
 unsigned char* getAssembly( asm_env*, int, int );
 unsigned int getAddr( asm_env*, int, int );
@@ -7,7 +8,10 @@ void setAddr( asm_env*, int, int, unsigned int );
 
 AFUNC(movb)
 {
-	env->regs[ env->current_op - 0xb0 ] |= (char)env->current_args;
+	char *creg = (char *) &(env->regs[env->current_op - 0xb0]);
+	creg[0] = (char)env->current_args;
+	//env->regs[ env->current_args - 0xb0 ] = indexof( env->regs[ env->current_args - 0xb0 ], 0 );
+	
 }
 
 AFUNC(movl)
@@ -25,6 +29,7 @@ AFUNC(movw)
 
 AFUNC(movr)
 {
+	
 	unsigned char roffset[] = {
 		0xc0,
 		0xc8,
