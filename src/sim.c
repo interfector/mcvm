@@ -19,7 +19,52 @@ AFUNC(movbmr)
 	if( env->regs[ cargs[0] ] < 0 || env->regs[ cargs[0] ] > env->mem_size )
 		die( env, "SIGSEGV" );
 	else
-		env->mem_base[ env->regs[ cargs[0] ] ] = cargs[1];
+		env->mem_base[ env->regs[ cargs[0] ] ] = (uchar)cargs[1];
+}
+
+AFUNC(movbrm)
+{
+	unsigned char ooffset[] = {
+		0x40,
+		0x48,
+		0x50,
+		0x58
+	};
+	unsigned char ioffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18
+	};
+	int off, offset = 0;
+
+	off = getOffset( env->current_args, ooffset, sizeof(ooffset) );
+
+	if( off == -1 )
+	{
+		env->current_args = ((uchar*)&env->current_args)[0];
+		env->eip--;
+	} else {
+		offset = ((uchar*)&env->current_args)[1];
+		env->current_args = ((uchar*)&env->current_args)[0];
+	}
+
+	if( 0x00 <= env->current_args && env->current_args <= 0x1f )
+	{
+		off = getOffset( env->current_args, ioffset, sizeof(ioffset) );
+
+		if( env->regs[ env->current_args - ioffset[off] ] < 0 || env->regs[ env->current_args - ioffset[off] ] > env->mem_size )
+			die( env, "SIGSEGV" );
+		else
+			((uchar*)&env->regs[ off ])[0] = (uchar)env->mem_base[ env->regs[ env->current_args - ioffset[ off ] ] ];
+	} else if( 0x40 <= env->current_args && env->current_args <= 0x5f ) {
+		off = getOffset( env->current_args, ooffset, sizeof(ooffset) );
+
+		if( env->regs[ env->current_args - ooffset[off] ] + offset < 0 || env->regs[ env->current_args - ooffset[ off ] ] + offset > env->mem_size )
+			die( env, "SIGSEGV" );
+		else
+			((uchar*)&env->regs[ off ])[0] = (uchar)env->mem_base[ env->regs[ env->current_args - ooffset[ off ] ] + offset ];
+	}
 }
 
 AFUNC(movl)
@@ -31,8 +76,9 @@ AFUNC(movw)
 {
 	int off = (env->current_args & 0x000000FF) - 0xb8;
 
-	env->current_args =  (env->current_args & 0x00FFFF00) >> 8;
-	env->regs[ off ] |= env->current_args;
+	env->current_args = ((env->current_args & 0x00FFFF00) >> 8);
+	((char*)&env->regs[ off ])[0] = ((char*)&env->current_args)[0];
+	((char*)&env->regs[ off ])[1] = ((char*)&env->current_args)[1];
 }
 
 AFUNC(int3)
@@ -91,11 +137,14 @@ AFUNC(movr)
 
 	if( off == -1 )
 	{
-		env->current_args = env->current_args & 0x000000FF;
+		/*env->current_args = env->current_args & 0x000000FF;*/
+		env->current_args = ((char*)&env->current_args)[0];
 		env->eip--;
 	} else {
-		offset = (env->current_args & 0x0000FF00) >> 8;
-		env->current_args = env->current_args & 0x000000FF;
+		/*offset = (env->current_args & 0x0000FF00) >> 8;*/
+		offset = ((char*)&env->current_args)[1];
+		env->current_args = ((char*)&env->current_args)[0];
+		/*env->current_args = env->current_args & 0x000000FF;*/
 	}
 
 	if( 0xc0 <= env->current_args && env->current_args <= 0xff )

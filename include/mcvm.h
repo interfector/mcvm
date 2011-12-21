@@ -80,6 +80,7 @@ AFUNC(movl);
 AFUNC(movw);
 AFUNC(movr);
 AFUNC(movbmr);
+AFUNC(movbrm);
 AFUNC(memeax);
 AFUNC(nop);
 AFUNC(sjmp);
@@ -102,6 +103,7 @@ static
 struct assembly InstructionSet[] = {
 	{ '\xb0', '\xb3', 1, movb },
 	{ '\xc6', 0, 2, movbmr },
+	{ '\x8a', 0, 2, movbrm },
 	{ '\xb8', '\xbf', 4, movl },
 	{ '\x66', 0, 3, movw },
 	{ '\x89', 0, 2, movr },
