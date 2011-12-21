@@ -7,7 +7,8 @@
 
 #define indexof( addr, i ) (( addr & (0xFF << (i * 8)) ) >> (i * 8))
 #define AFUNC(name) void name( asm_env* env )
-#define setBit(word, pos) (word | (1 << (pos-1)))
+#define setBit(word, pos) (word | (1 << (pos)))
+#define dgetBit(word,pos) ((word & (1 << (pos))) >> (pos))
 #define inRange(num, num1, num2) ((num >= num1 && num <= num2) ? 1 : 0)
 
 typedef struct {
@@ -24,6 +25,8 @@ typedef struct {
 	unsigned char* mem_base;
 	unsigned int   mem_size;
 } asm_env;
+
+typedef unsigned char uchar;
 
 enum {
 	R_EAX = 0,
@@ -59,7 +62,8 @@ enum {
 	F_ALIGNMENT,
 	F_VIF,
 	F_VIP,
-	F_CPUID
+	F_CPUID,
+	F_EFLAGS
 };
 	
 
@@ -75,6 +79,7 @@ AFUNC(movb);
 AFUNC(movl);
 AFUNC(movw);
 AFUNC(movr);
+AFUNC(movbmr);
 AFUNC(memeax);
 AFUNC(nop);
 AFUNC(sjmp);
@@ -90,12 +95,13 @@ AFUNC(mradd);
 AFUNC(rmsub);
 AFUNC(mrsub);
 AFUNC(int3);
-AFUNC(cmp);
+AFUNC(cmpb);
 
 /* {'start_range', 'end_range', 'arg_len', 'function_pointer'} */
 static 
 struct assembly InstructionSet[] = {
 	{ '\xb0', '\xb3', 1, movb },
+	{ '\xc6', 0, 2, movbmr },
 	{ '\xb8', '\xbf', 4, movl },
 	{ '\x66', 0, 3, movw },
 	{ '\x89', 0, 2, movr },
@@ -114,7 +120,7 @@ struct assembly InstructionSet[] = {
 	{ '\x2b', 0, 2, rmsub },
 	{ '\x29', 0, 2, mrsub },
 	{ '\xcc', 0, 0, int3 },
-	{ '\x3c', '\x3c'+3, 1, cmp }
+	{ '\x80', 0, 2, cmpb },
 };
 
 struct assembly getOpcode( unsigned char);

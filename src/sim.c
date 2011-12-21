@@ -8,8 +8,18 @@ void setAddr( asm_env*, int, int, unsigned int );
 
 AFUNC(movb)
 {
-	char *creg = (char *) &(env->regs[env->current_op - 0xb0]);
-	creg[0] = (char)env->current_args;
+	uchar *creg = (uchar *) &(env->regs[env->current_op - 0xb0]);
+	creg[0] = (uchar)env->current_args;
+}
+
+AFUNC(movbmr)
+{
+	uchar* cargs = (uchar*) &(env->current_args);
+
+	if( env->regs[ cargs[0] ] < 0 || env->regs[ cargs[0] ] > env->mem_size )
+		die( env, "SIGSEGV" );
+	else
+		env->mem_base[ env->regs[ cargs[0] ] ] = cargs[1];
 }
 
 AFUNC(movl)
@@ -30,21 +40,17 @@ AFUNC(int3)
 	dumpAll(env);
 }
 
-AFUNC(cmp)
+AFUNC(cmpb)
 {
-	char *cargs = (char *) &(env->current_args), *creg;
-	if (inRange(env->current_op, 0x3c, 0x3c+8)) 
-	{
-		creg = (char *) &(env->regs[env->current_op - 0x3c]);
-		printf("%d == %d?\n%d\n", creg[0], cargs[0], (creg[0] == cargs[0]));
-		if (creg[0] == cargs[0]) 
-			env->eflags = zeroBit(env->eflags, F_ZERO);
-		else
-			env->eflags = setBit(env->eflags, F_ZERO);
-	}
-			
-}
+	uchar* cargs = (uchar *) &(env->current_args), *creg;
 
+	creg = (uchar *) &(env->regs[cargs[0] - 0xf8]);
+
+	if (creg[0] == cargs[1]) 
+		env->eflags = zeroBit(env->eflags, F_ZERO);
+	else
+		env->eflags = setBit(env->eflags, F_ZERO);
+}
 
 AFUNC(movr)
 {
@@ -252,7 +258,8 @@ AFUNC(arithl)
 		0xe0,
 		0xe8,
 		0xf0,
-		0xf8
+		0xf8,
+		0xff,
 	};
 	/*
 	void (*arithmetic[])(asm_env*, unsigned char*,int) = {
@@ -297,6 +304,12 @@ AFUNC(arithl)
 			break;
 		case 4:
 			env->regs[ index ] ^= arg;
+			break;
+		case 5:
+			if( arg == env->regs[ index ] )
+				env->eflags = zeroBit(env->eflags, F_ZERO);
+			else
+				env->eflags = setBit(env->eflags, F_ZERO);
 			break;
 		default:
 			break;
@@ -668,12 +681,39 @@ dumpRegs( asm_env* env )
 		"%esi",
 		"%edi",
 	};
+	char* eflags_tab[] = {
+		"CF",
+		"RS",
+		"PF",
+		"RS",
+		"AF",
+		"RS",
+		"ZF",
+		"SF",
+		"TF",
+		"IF",
+		"DF",
+		"OF",
+		"Iopl",
+		"Iopl",
+		"NTF",
+		"RS",
+		"Resume",
+		"Vm",
+		"Align",
+		"Vif",
+		"Vip",
+		"Cpuid",
+	};
 	int i;
 
 	for(i = 0;i < R_REGS;i++)
 		printf("%s\t0x%08lx\n", string_tab[ i ], env->regs[ i ] );
-	
-	printf("EFLAGS\t0x%08lx\n", env->eflags);
+
+	printf("\n\e[1;31mEFlags:\e[0m\n");
+
+	for(i = 0;i < /*F_EFLAGS*/F_IOPL1;i++)
+		printf("%s\t%01x\n", eflags_tab[ i ], getBit(env->eflags, i) );
 }
 
 void
