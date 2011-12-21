@@ -10,8 +10,6 @@ AFUNC(movb)
 {
 	char *creg = (char *) &(env->regs[env->current_op - 0xb0]);
 	creg[0] = (char)env->current_args;
-	//env->regs[ env->current_args - 0xb0 ] = indexof( env->regs[ env->current_args - 0xb0 ], 0 );
-	
 }
 
 AFUNC(movl)
@@ -26,6 +24,27 @@ AFUNC(movw)
 	env->current_args =  (env->current_args & 0x00FFFF00) >> 8;
 	env->regs[ off ] |= env->current_args;
 }
+
+AFUNC(int3)
+{
+	dumpAll(env);
+}
+
+AFUNC(cmp)
+{
+	char *cargs = (char *) &(env->current_args), *creg;
+	if (inRange(env->current_op, 0x3c, 0x3c+8)) 
+	{
+		creg = (char *) &(env->regs[env->current_op - 0x3c]);
+		printf("%d == %d?\n%d\n", creg[0], cargs[0], (creg[0] == cargs[0]));
+		if (creg[0] == cargs[0]) 
+			env->eflags = zeroBit(env->eflags, F_ZERO);
+		else
+			env->eflags = setBit(env->eflags, F_ZERO);
+	}
+			
+}
+
 
 AFUNC(movr)
 {
@@ -594,6 +613,27 @@ AFUNC(nop)
 {
 }
 
+int 
+getBit(unsigned int word, int pos)
+{
+	unsigned int nword = setBit(word, pos);
+	nword ^= word;
+	return (nword == 0 ? 1 : 0);
+}
+
+unsigned int
+zeroBit(unsigned int word, int pos)
+{
+	unsigned int base = 0;
+	if (getBit(word, pos))
+	{
+		base = setBit(base, pos);
+		word ^= base;
+	}
+	
+	return word;
+}
+
 struct assembly
 getOpcode( unsigned char code )
 {
@@ -632,6 +672,8 @@ dumpRegs( asm_env* env )
 
 	for(i = 0;i < R_REGS;i++)
 		printf("%s\t0x%08lx\n", string_tab[ i ], env->regs[ i ] );
+	
+	printf("EFLAGS\t0x%08lx\n", env->eflags);
 }
 
 void
