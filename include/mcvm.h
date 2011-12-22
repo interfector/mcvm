@@ -97,6 +97,7 @@ AFUNC(rmsub);
 AFUNC(mrsub);
 AFUNC(int3);
 AFUNC(cmpb);
+AFUNC(xchg_eax);
 
 /* {'start_range', 'end_range', 'arg_len', 'function_pointer'} */
 static 
@@ -123,6 +124,7 @@ struct assembly InstructionSet[] = {
 	{ '\x29', 0, 2, mrsub },
 	{ '\xcc', 0, 0, int3 },
 	{ '\x80', 0, 2, cmpb },
+	{ '\x91', '\x97', 0, xchg_eax }
 };
 
 struct assembly getOpcode( unsigned char);
