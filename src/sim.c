@@ -727,7 +727,10 @@ AFUNC(interrupt)
 	for(i = 0;i < len;i++)
 	{
 		if( InterruptHandler[ i ].code == carg )
+		{
 			InterruptHandler[ i ].function( env );
+			break;
+		}
 	}
 }
 
