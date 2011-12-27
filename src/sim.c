@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 int getOffset( unsigned char, unsigned char*, int );
 unsigned char* getAssembly( asm_env*, int, int );
 unsigned int getAddr( asm_env*, int, int );
