@@ -69,6 +69,14 @@ AFUNC(movbrm)
 	}
 }
 
+AFUNC(xchg_eax)
+{
+	unsigned int creg = env->current_op - 0x90;
+	env->regs[0] ^= env->regs[creg];
+	env->regs[creg] ^= env->regs[0];
+	env->regs[0] ^= env->regs[creg];
+}
+
 AFUNC(movl)
 {
 	env->regs[ env->current_op - 0xb8 ] = env->current_args;
