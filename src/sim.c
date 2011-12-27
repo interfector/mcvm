@@ -1,4 +1,6 @@
 #include <mcvm.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 
 int getOffset( unsigned char, unsigned char*, int );
@@ -675,6 +677,52 @@ AFUNC(nop)
 {
 }
 
+IFUNC(iexit)
+{
+	printf("\e[1;31mExit code:\e[0m\t0x%08x\n", (unsigned int)env->regs[ R_EBX ] );
+
+	dumpAll( env );
+
+	return 0;
+}
+
+IFUNC(iread)
+{
+	return read( env->regs[ R_EBX ], env->mem_base + env->regs[ R_ECX ], env->regs[ R_EDX ] );
+}
+
+IFUNC(iwrite)
+{
+	return write( env->regs[ R_EBX ], env->mem_base + env->regs[ R_ECX ], env->regs[ R_EDX ] );
+}
+
+AFUNC(int80)
+{
+	int (*ifunc[])(asm_env*) = {
+		NULL,
+		iexit,
+		NULL,
+		iread,
+		iwrite
+	};
+
+	env->regs[ R_EAX ] = ifunc[ env->regs[ R_EAX ] ]( env );
+}
+
+AFUNC(interrupt)
+{
+	int i;
+	int len = sizeof(InterruptHandler)/sizeof(struct interrupth);
+	uchar carg = (uchar)env->current_args;
+
+
+	for(i = 0;i < len;i++)
+	{
+		if( InterruptHandler[ i ].code == carg )
+			InterruptHandler[ i ].function( env );
+	}
+}
+
 int 
 getBit(unsigned int word, int pos)
 {
@@ -799,6 +847,8 @@ dumpAll( asm_env* env )
 	}
 
 	putchar('\n');
+
+	exit( 0 );
 }
 
 void

@@ -1,7 +1,7 @@
 TODO list:
 	- arithmetic operation ( 1/2 )
 	- logic operation ( 1/2 )
-	- jumps and flags ( flags OK, implementing cmp )
+	- jumps and flags ( flags OK, implementing cmp and conditional jumps )
 	- stack
-	- syscall ( may be )
+	- syscall ( 1/2 )
 	- call and ret ( may be )

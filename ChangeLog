@@ -1,5 +1,6 @@
 2011-08-11 nex <nex@autistici.org>
 
+* sim.c: interrupt implemented
 * sim.c: eflags implemented
 * sim.c: arithmetic and logic implemented
 * sim.c: it contains all the function of opcodes

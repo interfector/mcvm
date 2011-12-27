@@ -7,9 +7,11 @@
 
 #define indexof( addr, i ) (( addr & (0xFF << (i * 8)) ) >> (i * 8))
 #define AFUNC(name) void name( asm_env* env )
+#define IFUNC(name) int name( asm_env* env )
 #define setBit(word, pos) (word | (1 << (pos)))
 #define dgetBit(word,pos) ((word & (1 << (pos))) >> (pos))
 #define inRange(num, num1, num2) ((num >= num1 && num <= num2) ? 1 : 0)
+#define pdie(s,ec) do{ perror(s); exit(ec); }while(0)
 
 typedef struct {
 	unsigned long int regs[8];
@@ -97,6 +99,7 @@ AFUNC(rmsub);
 AFUNC(mrsub);
 AFUNC(int3);
 AFUNC(cmpb);
+AFUNC(interrupt);
 
 /* {'start_range', 'end_range', 'arg_len', 'function_pointer'} */
 static 
@@ -123,6 +126,19 @@ struct assembly InstructionSet[] = {
 	{ '\x29', 0, 2, mrsub },
 	{ '\xcc', 0, 0, int3 },
 	{ '\x80', 0, 2, cmpb },
+	{ '\xcd', 0, 1, interrupt },
+};
+
+struct interrupth {
+	unsigned char code;
+	void (*function)(asm_env*);
+};
+
+AFUNC(int80);
+
+static
+struct interrupth InterruptHandler[] = {
+	{ 0x80, int80 },
 };
 
 struct assembly getOpcode( unsigned char);
