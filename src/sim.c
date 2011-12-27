@@ -713,8 +713,12 @@ AFUNC(int80)
 		iread,
 		iwrite
 	};
+	int len = sizeof(ifunc)/sizeof(void*);
 
-	env->regs[ R_EAX ] = ifunc[ env->regs[ R_EAX ] ]( env );
+	if( env->regs[ R_EAX ] < 0 || env->regs[ R_EAX ] >= len || ifunc[ env->regs[ R_EAX ] ] == NULL )
+		die( env, "SIGSEGV" );
+	else
+		env->regs[ R_EAX ] = ifunc[ env->regs[ R_EAX ] ]( env );
 }
 
 AFUNC(interrupt)
