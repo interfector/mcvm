@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Usage: ./hexify code.o > code.hex; mcvm code.hex
+
+echo -e -n "`textdump $1 | grep "\\x"`"

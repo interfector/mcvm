@@ -539,7 +539,6 @@ AFUNC(mradd)
 			addr = getAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int) );
 			addr += env->regs[ off ];
 			setAddr( env, env->regs[ env->current_args - rooffset[ off ] ] + offset, sizeof(int), addr );
-
 		}
 	}
 }
