@@ -86,8 +86,8 @@ AFUNC(movw)
 	int off = (env->current_args & 0x000000FF) - 0xb8;
 
 	env->current_args = ((env->current_args & 0x00FFFF00) >> 8);
-	((char*)&env->regs[ off ])[0] = ((char*)&env->current_args)[0];
-	((char*)&env->regs[ off ])[1] = ((char*)&env->current_args)[1];
+	((uchar*)&env->regs[ off ])[0] = ((uchar*)&env->current_args)[0];
+	((uchar*)&env->regs[ off ])[1] = ((uchar*)&env->current_args)[1];
 }
 
 AFUNC(int3)
@@ -138,7 +138,8 @@ AFUNC(movr)
 		0x60,
 		0x68,
 		0x70,
-		0x78
+		0x78,
+		0x7f
 	};
 	int off, offset = 0;
 
@@ -147,20 +148,20 @@ AFUNC(movr)
 	if( off == -1 )
 	{
 		/*env->current_args = env->current_args & 0x000000FF;*/
-		env->current_args = ((char*)&env->current_args)[0];
+		env->current_args = ((uchar*)&env->current_args)[0];
 		env->eip--;
 	} else {
 		/*offset = (env->current_args & 0x0000FF00) >> 8;*/
-		offset = ((char*)&env->current_args)[1];
-		env->current_args = ((char*)&env->current_args)[0];
+		offset = ((uchar*)&env->current_args)[1];
+		env->current_args = ((uchar*)&env->current_args)[0];
 		/*env->current_args = env->current_args & 0x000000FF;*/
 	}
 
 	if( 0xc0 <= env->current_args && env->current_args <= 0xff )
 	{
 		off = getOffset( env->current_args, roffset, sizeof(roffset) );
-		setAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int), env->regs[ off ] );
-		/*env->regs[ env->current_args - roffset[off] ] = env->regs[ off ];*/
+		/* setAddr( env, env->regs[ env->current_args - roffset[ off ] ], sizeof(int), env->regs[ off ] );*/
+		env->regs[ env->current_args - roffset[off] ] = env->regs[ off ];
 	} else //	if( 0x00 <= env->current_args && env->current_args <= 0x3f )
 	{
 		if( 0x00 <= env->current_args && env->current_args <= 0x3f )
@@ -197,7 +198,7 @@ AFUNC(movr)
 AFUNC(memeax)
 {
 	if( env->current_op == 0xa2 )
-		env->mem_base[ env->current_args ] = (char)env->regs[ R_EAX ];
+		env->mem_base[ env->current_args ] = (uchar)env->regs[ R_EAX ];
 	else if( env->current_op == 0xa3 )
 		env->mem_base[ env->current_args ] = (unsigned int)env->regs[ R_EAX ];
 }
@@ -235,12 +236,12 @@ AFUNC(idb)
 
 	if( 0x40 <= env->current_args && env->current_args <= 0x47 )
 	{
-		lreg = (char) (env->regs[ env->current_args - 0x40 ] & 0x000000FF) + 1;
+		lreg = (uchar) (env->regs[ env->current_args - 0x40 ] & 0x000000FF) + 1;
 
 		env->regs[ env->current_args - 0x40 ] &= 0xFFFFFF00;
 		env->regs[ env->current_args - 0x40 ] |= lreg;
 	} else if( 0x48 <= env->current_args && env->current_args <= 0x4f ) {
-		lreg = (char) (env->regs[ env->current_args - 0x48 ] & 0x000000FF) - 1;
+		lreg = (uchar) (env->regs[ env->current_args - 0x48 ] & 0x000000FF) - 1;
 
 		env->regs[ env->current_args - 0x48 ] &= 0xFFFFFF00;
 		env->regs[ env->current_args - 0x48 ] |= lreg;
@@ -702,6 +703,16 @@ IFUNC(iwrite)
 	return write( env->regs[ R_EBX ], env->mem_base + env->regs[ R_ECX ], env->regs[ R_EDX ] );
 }
 
+IFUNC(iopen)
+{
+	return open( (char *)( env->mem_base + env->regs[ R_EBX ]), env->regs[ R_ECX ], env->regs[ R_EDX ] );
+}
+
+IFUNC(iclose)
+{
+	return close( env->regs[ R_EBX ] );
+}
+
 AFUNC(int80)
 {
 	int (*ifunc[])(asm_env*) = {
@@ -709,7 +720,9 @@ AFUNC(int80)
 		iexit,
 		NULL,
 		iread,
-		iwrite
+		iwrite,
+		iopen,
+		iclose,
 	};
 	int len = sizeof(ifunc)/sizeof(void*);
 
@@ -925,7 +938,14 @@ getOffset( unsigned char args, unsigned char* array, int size )
 	int i, off = -1;
 
 	if( args > array[ size - 1 ] )
-		off = size - 1;
+	{
+		if( size == 9 )
+		{
+			if( args < array[ size - 1 ] )
+				off = size - 1;
+		} else 
+			off = size - 1;
+	}
 	else {
 		for(i = 0;i < size - 1;i++)
 		{

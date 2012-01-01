@@ -62,7 +62,7 @@ int
 main(int argc, char** argv)
 {
 	asm_env* env = malloc( sizeof(asm_env) );
-	struct assembly opcode;
+	struct assembly opcode = { 0, 0, 0, NULL };
 	unsigned char* args;
 	int i;
 
