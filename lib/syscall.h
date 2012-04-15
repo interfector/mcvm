@@ -5,13 +5,13 @@
 
 #define setBit(word, pos) (word | (1 << (pos)))
 
+#define STACKSTART	1024
+#define STACKSIZE	1024
+
 typedef struct {
 	unsigned long int regs[8];
 	unsigned long int eflags;
 			
-	void**	stack;
-	int		stack_length;
-
 	unsigned int eip;
 	unsigned int current_op;
 	unsigned int current_args;
@@ -59,5 +59,5 @@ enum {
 };
 
 
-void die( asm_env*, char* );
-void dumpAll( asm_env* );
+void _die( asm_env*, char* );
+void _dumpAll( asm_env* );

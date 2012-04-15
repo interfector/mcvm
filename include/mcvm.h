@@ -20,8 +20,6 @@ typedef struct {
 	unsigned long int regs[8];
 	unsigned long int eflags;
 	
-	int stack_cur;
-
 	unsigned int eip;
 	unsigned int current_op;
 	unsigned int current_args;
