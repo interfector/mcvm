@@ -13,12 +13,14 @@
 #define inRange(num, num1, num2) ((num >= num1 && num <= num2) ? 1 : 0)
 #define pdie(s,ec) do{ perror(s); exit(ec); }while(0)
 
+#define STACKSTART	1024
+#define STACKSIZE	1024
+
 typedef struct {
 	unsigned long int regs[8];
 	unsigned long int eflags;
 	
-	void**	stack;
-	int		stack_length;
+	int stack_cur;
 
 	unsigned int eip;
 	unsigned int current_op;
@@ -68,7 +70,6 @@ enum {
 	F_EFLAGS
 };
 	
-
 struct assembly {
 	unsigned char opcode;
 	unsigned char lopcode;
@@ -101,6 +102,13 @@ AFUNC(int3);
 AFUNC(cmpb);
 AFUNC(interrupt);
 AFUNC(xchg_eax);
+AFUNC(push);
+AFUNC(pushr);
+AFUNC(pushm);
+AFUNC(popr);
+AFUNC(popm);
+AFUNC(call);
+AFUNC(ret);
 
 /* {'start_range', 'end_range', 'arg_len', 'function_pointer'} */
 static 
@@ -128,6 +136,13 @@ struct assembly InstructionSet[] = {
 	{ '\xcc', 0, 0, int3 },
 	{ '\x80', 0, 2, cmpb },
 	{ '\x91', '\x97', 0, xchg_eax },
+	{ '\x68', 0, 4, push },
+	{ '\x50', '\x57', 0, pushr },
+	{ '\xff', 0, 1, pushm },
+	{ '\x58', '\x5f', 0, popr },
+	{ '\x8f', 0, 1, popm },
+	{ '\xe8', 0, 4, call },
+	{ '\xc3', 0, 0, ret },
 	{ '\xcd', 0, 1, interrupt },
 };
 
@@ -151,4 +166,6 @@ void dumpAll( asm_env* );
 void die( asm_env*, char* );
 int getBit(unsigned int, int);
 unsigned int zeroBit(unsigned int, int);
+
+void loadHandler(void);
 #endif

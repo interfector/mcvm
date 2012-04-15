@@ -1,7 +1,6 @@
 #include <mcvm.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 unsigned char assembly_code[] = {
 /*	0xb3, 0x02,
@@ -74,8 +73,7 @@ main(int argc, char** argv)
 
 	env->eflags =
 	env->current_op = 
-	env->current_args =
-	env->stack_length = 0;
+	env->current_args = 0;
 
 	/*
 	env->mem_size = sizeof( assembly_code );
@@ -98,13 +96,21 @@ main(int argc, char** argv)
 		pdie("stat", 3);
 
 	env->mem_size = (int) st.st_size;
-	env->mem_base = malloc( env->mem_size );
-	memset( env->mem_base, 0x00, env->mem_size );
+	env->mem_base = malloc( env->mem_size + STACKSTART + STACKSIZE );
+	memset( env->mem_base, 0x00, env->mem_size + STACKSTART + STACKSIZE );
+
+	env->regs[ R_EBP ] = env->regs[ R_ESP ] = (unsigned int)STACKSTART;
+	env->regs[ R_ESP ] -= 4;
 
 	if(fread(env->mem_base, 1, env->mem_size, fp) != env->mem_size)
 		pdie("fread", 4);
 
 	fclose( fp );
+
+	env->mem_size += (STACKSTART + STACKSIZE);
+
+	if(getenv("LIBSYSCALL"))
+		loadHandler();
 
 	for(env->eip = 0;env->eip < env->mem_size;env->eip++)
 	{

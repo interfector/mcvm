@@ -1,6 +1,7 @@
 #include <mcvm.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dlfcn.h>
 
 int getOffset( unsigned char, unsigned char*, int );
 unsigned char* getAssembly( asm_env*, int, int );
@@ -92,7 +93,7 @@ AFUNC(movw)
 
 AFUNC(int3)
 {
-	dumpAll(env);
+	die( env, "SIGTRAP" );
 }
 
 AFUNC(cmpb)
@@ -280,7 +281,7 @@ AFUNC(rref)
 		env->current_args = env->current_args & 0x000000FF;
 		env->eip--;
 	} else {
-		offset = (env->current_args & 0x0000FF00) >> 8;
+		offset = (char)((env->current_args & 0x0000FF00) >> 8);
 		env->current_args = env->current_args & 0x000000FF;
 	}
 
@@ -294,6 +295,9 @@ AFUNC(rref)
 			/*env->regs[ off ] = env->mem_base[ env->regs[ env->current_args - rfoffset[ off ] ] ];*/
 			addr = getAddr( env, env->regs[ env->current_args - rfoffset[ off ] ], sizeof(int) );
 			env->regs[ off ] = addr;
+
+			if( env->mem_base[ env->eip + 3 ] == 0x24 )
+				env->eip++;
 		}
 	} else if( 0x40 <= env->current_args && env->current_args <= 0x7f )
 	{
@@ -303,8 +307,18 @@ AFUNC(rref)
 			die( env, "SIGSEGV" );
 		else {
 			/*env->regs[ off ] = env->mem_base[ env->regs[ env->current_args - rfooffset[ off ] ] + offset ];*/
-			addr = getAddr( env, env->regs[ env->current_args - rfooffset[ off ] ] + offset, sizeof(int) );
-			env->regs[ off ] = addr;
+
+			if( env->mem_base[ env->eip + 2 ] == 0x24 )
+			{
+				offset = (char)env->mem_base[ env->eip + 3 ];
+				addr = getAddr( env, (signed)env->regs[ R_ESP ] + (int)offset, sizeof(int) );
+				env->regs[ off ] = addr;
+
+				env->eip++;
+			} else {
+				addr = getAddr( env, (signed)env->regs[ env->current_args - rfooffset[ off ] ] + (int)offset, sizeof(int) );
+				env->regs[ off ] = addr;
+			}
 		}
 	}
 }
@@ -680,6 +694,105 @@ AFUNC(mrsub)
 	}
 }
 
+AFUNC(push)
+{
+	env->regs[ R_ESP ] += 4;
+
+	setAddr( env, env->regs[ R_ESP ], sizeof(int), (unsigned int)env->current_args );
+}
+
+AFUNC(pushr)
+{
+	env->regs[ R_ESP ] += 4;
+
+	setAddr( env, env->regs[ R_ESP ], sizeof(int), env->regs[ env->current_op - 0x50 ] );
+}
+
+AFUNC(pushm)
+{
+	if( env->current_args >= 0x20 && env->current_args <= 0x27 )
+	{
+		env->eip = getAddr( env, env->regs[ env->current_args - 0x20 ], sizeof(int) ) - 1;
+	} else if( env->current_args >= 0xe0 && env->current_args <= 0xe7 ) {
+		env->eip = env->regs[ env->current_args - 0xe0 ] - 1;
+	} else if( env->current_args >= 0xd0 && env->current_args <= 0xd7 ) {
+	} else if( env->current_args >= 0x10 && env->current_args <= 0x17 ) {
+	} else {
+		env->regs[ R_ESP ] += 4;
+
+		if( env->current_args >= 0x30 && env->current_args <= 0x37 )
+			setAddr( env, env->regs[ R_ESP ], sizeof(int), getAddr( env, env->regs[ env->current_args - 0x30 ], sizeof(int) ) );
+		else {
+			unsigned char* code = getAssembly( env, env->eip, 3 );
+
+			if( code[1] >= 0x70 && code[1] <= 0x77 )
+				setAddr( env, env->regs[ R_ESP ], sizeof(int), getAddr( env, env->regs[ code[1] - 0x70 ] + code[2], sizeof(int) ) );
+
+			env->eip++;
+		}
+	}
+}
+
+AFUNC(popr)
+{
+	void* ptr;
+
+	if( env->regs[ R_ESP ] < STACKSTART-4 )
+		die( env, "SIGSEGV" );
+
+	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+
+	env->regs[ R_ESP ] -= 4;
+
+	env->regs[ env->current_op - 0x58 ] = (unsigned long int) ptr;
+}
+
+AFUNC(popm)
+{
+	void* ptr;
+
+	if( env->regs[ R_ESP ] < STACKSTART-4 )
+		die( env, "SIGSEGV" );
+
+	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+
+	env->regs[ R_ESP ] -= 4;
+
+	if( env->current_args <= 0x7 )
+		setAddr( env, env->regs[ env->current_args ], sizeof(int), (unsigned int)ptr );
+	else {
+		unsigned char* code = getAssembly( env, env->eip, 3 );
+
+		if( code[1] >= 0x40 && code[1] <= 0x47 )
+			setAddr( env, env->regs[ code[1] - 0x40 ] + code[2], sizeof(int), (unsigned int)ptr );
+
+		env->eip++;
+	}
+}
+
+AFUNC(call)
+{
+	env->regs[ R_ESP ] += 4;
+
+	setAddr( env, env->regs[ R_ESP ], sizeof(int), (unsigned int)env->eip + 5 );
+
+	env->eip += env->current_args;
+}
+
+AFUNC(ret)
+{
+	void* ptr;
+
+	if( env->regs[ R_ESP ] < STACKSTART - 4 )
+		die( env, "SIGSEGV" );
+
+	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+
+	env->regs[ R_ESP ] -= 4;
+
+	env->eip = (unsigned int)ptr - 1;
+}
+
 AFUNC(nop)
 {
 }
@@ -800,7 +913,7 @@ dumpRegs( asm_env* env )
 		"%edx",
 		"%ebx",
 		"%esp",
-		"%edp",
+		"%ebp",
 		"%esi",
 		"%edi",
 	};
@@ -840,6 +953,31 @@ dumpRegs( asm_env* env )
 }
 
 void
+dumpStack( asm_env* env )
+{
+	int i;
+
+	if( env->regs[ R_ESP ] < env->regs[ R_EBP ] )
+		puts("Empty!");
+	else
+	{
+
+		printf("   ");
+
+		for (i = 0; i < 6; i++)
+			printf("      \e[1;30m%02x\e[0m ", i );
+
+		for(i = 0;i < ((env->regs[ R_ESP ] - env->regs[ R_EBP ]) / 4) + 1;i++)
+		{
+			if (i % 6 == 0) 
+				printf("\n\e[1;30m%02x\e[0m", i );
+
+			printf(" %08x", (unsigned int)getAddr( env, env->regs[ R_EBP ] + (i * 4), sizeof(int)) );
+		}
+	}
+}
+
+void
 dumpAll( asm_env* env )
 {
 	int i;
@@ -857,14 +995,14 @@ dumpAll( asm_env* env )
 
 	printf("\n\e[1;31mStack:\e[0m\n");
 
-	//dumpStack( env );
+	dumpStack( env );
 
 	printf("\n\e[1;31mMem base:\e[0m\n  ");
 
 	for (i = 0; i < 16; i++)
 		printf(" \e[1;30m%02x\e[0m", i);
 
-	for(i = 0;i < env->mem_size;i++)
+	for(i = 0;i < (env->mem_size - STACKSIZE - STACKSTART);i++)
 	{
 		if (i % 16 == 0) 
 			printf("\n\e[1;30m%02x\e[0m", i );
@@ -911,6 +1049,8 @@ getAddr( asm_env* env, int index, int size )
 	code = getAssembly( env, index, size );
 
 	addr = (code[3] << 24) + (code[2] << 16) + (code[1] << 8) + code[0];
+
+	free( code );
 /* 
  * for(i = 0;i < size;i++)
  * 	addr = (addr << 8) | env->mem_base[ index + i ];
@@ -958,6 +1098,17 @@ getOffset( unsigned char args, unsigned char* array, int size )
 	}
 
 	return off;
+}
+
+void
+loadHandler(void)
+{
+	FILE* dl;
+
+	if( !(dl = dlopen( getenv("LIBSYSCALL"), RTLD_GLOBAL | RTLD_NOW )) )
+		pdie("dlopen", 5);
+
+	InterruptHandler[ 0 ].function = dlsym( dl, "syscall_handler" );
 }
 
 void

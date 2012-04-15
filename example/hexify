@@ -2,4 +2,11 @@
 
 # Usage: ./hexify code.o > code.hex; mcvm code.hex
 
-echo -e -n "`objdump -d $1 -j .text | perl ./bytecode.pl`"
+objfile=`echo $1 | sed s/\.s/\.o/i`
+hexfile=`echo $1 | sed s/\.s/\.hex/i`
+
+as -o $objfile $1
+echo "$1 > $objfile > $hexfile"
+echo -e -n "`objdump -d $objfile -j .text | perl ./bytecode.pl`" > $hexfile
+
+rm $objfile
