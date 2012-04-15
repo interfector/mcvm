@@ -17,7 +17,6 @@ func:
 	movl	%ebp, %esp
 	pop	%ebp
 	ret
-	
 /*
 enter:
 	push	%ebp

@@ -101,6 +101,7 @@ AFUNC(cmpb);
 AFUNC(interrupt);
 AFUNC(xchg_eax);
 AFUNC(push);
+AFUNC(pushb);
 AFUNC(pushr);
 AFUNC(pushm);
 AFUNC(popr);
@@ -135,6 +136,7 @@ struct assembly InstructionSet[] = {
 	{ '\x80', 0, 2, cmpb },
 	{ '\x91', '\x97', 0, xchg_eax },
 	{ '\x68', 0, 4, push },
+	{ '\x6a', 0, 1, push },
 	{ '\x50', '\x57', 0, pushr },
 	{ '\xff', 0, 1, pushm },
 	{ '\x58', '\x5f', 0, popr },

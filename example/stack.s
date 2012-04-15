@@ -16,7 +16,7 @@ _start:
 _data:
 	.long 0x41414141*/
 
-	push	$0xdeadc0de
+	push	$1
 
 	movl	$0, %eax
 	push	1(%eax)
