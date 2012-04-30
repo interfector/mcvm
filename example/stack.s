@@ -18,7 +18,11 @@ _data:
 
 	push	$1
 
-	movl	$0, %eax
+	pop	%eax
+
+	push	$0xdeadc0de
+
+/*	movl	$0, %eax
 	push	1(%eax)
 
 	movl	$_data, %ebx
@@ -35,4 +39,4 @@ _data:
 func:
 	movl	$1, %eax
 	movl	$0, %ebx
-	int	$0x80
+	int	$0x80*/

@@ -696,14 +696,14 @@ AFUNC(mrsub)
 
 AFUNC(push)
 {
-	env->regs[ R_ESP ] += 4;
+	env->regs[ R_ESP ] -= 4; /* + */
 
 	setAddr( env, env->regs[ R_ESP ], sizeof(int), (unsigned int)env->current_args );
 }
 
 AFUNC(pushr)
 {
-	env->regs[ R_ESP ] += 4;
+	env->regs[ R_ESP ] -= 4; /* + */
 
 	setAddr( env, env->regs[ R_ESP ], sizeof(int), env->regs[ env->current_op - 0x50 ] );
 }
@@ -712,13 +712,13 @@ AFUNC(pushm)
 {
 	if( env->current_args >= 0x20 && env->current_args <= 0x27 )
 	{
-		env->eip = getAddr( env, env->regs[ env->current_args - 0x20 ], sizeof(int) ) - 1;
+		env->eip = getAddr( env, env->regs[ env->current_args - 0x20 ], sizeof(int) ) - 2;
 	} else if( env->current_args >= 0xe0 && env->current_args <= 0xe7 ) {
-		env->eip = env->regs[ env->current_args - 0xe0 ] - 1;
+		env->eip = env->regs[ env->current_args - 0xe0 ] - 2;
 	} else if( env->current_args >= 0xd0 && env->current_args <= 0xd7 ) {
 	} else if( env->current_args >= 0x10 && env->current_args <= 0x17 ) {
 	} else {
-		env->regs[ R_ESP ] += 4;
+		env->regs[ R_ESP ] -= 4; /* + */
 
 		if( env->current_args >= 0x30 && env->current_args <= 0x37 )
 			setAddr( env, env->regs[ R_ESP ], sizeof(int), getAddr( env, env->regs[ env->current_args - 0x30 ], sizeof(int) ) );
@@ -737,12 +737,12 @@ AFUNC(popr)
 {
 	void* ptr;
 
-	if( env->regs[ R_ESP ] < STACKSTART-4 )
+	if( env->regs[ R_ESP ] > env->regs[ R_EBP ] ) /* < STK-4 */
 		die( env, "SIGSEGV" );
 
-	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+	ptr = (void*)getAddr( env, env->regs[ R_ESP ], sizeof(int) );
 
-	env->regs[ R_ESP ] -= 4;
+	env->regs[ R_ESP ] += 4; /* - */
 
 	env->regs[ env->current_op - 0x58 ] = (unsigned long int) ptr;
 }
@@ -751,12 +751,12 @@ AFUNC(popm)
 {
 	void* ptr;
 
-	if( env->regs[ R_ESP ] < STACKSTART-4 )
+	if( env->regs[ R_ESP ] > env->regs[ R_EBP ] )
 		die( env, "SIGSEGV" );
 
-	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+	ptr = (void*)getAddr( env, env->regs[ R_ESP ], sizeof(int) );
 
-	env->regs[ R_ESP ] -= 4;
+	env->regs[ R_ESP ] += 4; /* - */
 
 	if( env->current_args <= 0x7 )
 		setAddr( env, env->regs[ env->current_args ], sizeof(int), (unsigned int)ptr );
@@ -772,7 +772,7 @@ AFUNC(popm)
 
 AFUNC(call)
 {
-	env->regs[ R_ESP ] += 4;
+	env->regs[ R_ESP ] -= 4; /* + */
 
 	setAddr( env, env->regs[ R_ESP ], sizeof(int), (unsigned int)env->eip + 5 );
 
@@ -783,12 +783,12 @@ AFUNC(ret)
 {
 	void* ptr;
 
-	if( env->regs[ R_ESP ] < STACKSTART - 4 )
+	if( env->regs[ R_ESP ] > env->regs[ R_EBP ] )
 		die( env, "SIGSEGV" );
 
-	ptr = getAddr( env, env->regs[ R_ESP ], sizeof(int) );
+	ptr = (void*)getAddr( env, env->regs[ R_ESP ], sizeof(int) );
 
-	env->regs[ R_ESP ] -= 4;
+	env->regs[ R_ESP ] += 4; /* - */
 
 	env->eip = (unsigned int)ptr - 1;
 }
@@ -957,7 +957,7 @@ dumpStack( asm_env* env )
 {
 	int i;
 
-	if( env->regs[ R_ESP ] < env->regs[ R_EBP ] )
+	if( env->regs[ R_ESP ] > env->regs[ R_EBP ] ) /* < */
 		puts("Empty!");
 	else
 	{
@@ -967,12 +967,12 @@ dumpStack( asm_env* env )
 		for (i = 0; i < 6; i++)
 			printf("      \e[1;30m%02x\e[0m ", i );
 
-		for(i = 0;i < ((env->regs[ R_ESP ] - env->regs[ R_EBP ]) / 4) + 1;i++)
+		for(i = 0;i < ((env->regs[ R_EBP /* ESP */ ] - env->regs[ R_ESP /* EBP */ ]) / 4) + 1;i++)
 		{
 			if (i % 6 == 0) 
 				printf("\n\e[1;30m%02x\e[0m", i );
 
-			printf(" %08x", (unsigned int)getAddr( env, env->regs[ R_EBP ] + (i * 4), sizeof(int)) );
+			printf(" %08x", (unsigned int)getAddr( env, env->regs[ R_EBP ] - /* + */ (i * 4), sizeof(int)) );
 		}
 	}
 }

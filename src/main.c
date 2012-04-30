@@ -96,11 +96,11 @@ main(int argc, char** argv)
 		pdie("stat", 3);
 
 	env->mem_size = (int) st.st_size;
-	env->mem_base = malloc( env->mem_size + STACKSTART + STACKSIZE );
-	memset( env->mem_base, 0x00, env->mem_size + STACKSTART + STACKSIZE );
+	env->mem_base = malloc( env->mem_size + STACKSTART );
+	memset( env->mem_base, 0x00, env->mem_size + STACKSTART );
 
 	env->regs[ R_EBP ] = env->regs[ R_ESP ] = (unsigned int)STACKSTART;
-	env->regs[ R_ESP ] -= 4;
+	env->regs[ R_ESP ] += 4; /* - */
 
 	if(fread(env->mem_base, 1, env->mem_size, fp) != env->mem_size)
 		pdie("fread", 4);

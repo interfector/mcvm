@@ -13,8 +13,8 @@
 #define inRange(num, num1, num2) ((num >= num1 && num <= num2) ? 1 : 0)
 #define pdie(s,ec) do{ perror(s); exit(ec); }while(0)
 
-#define STACKSTART	1024
 #define STACKSIZE	1024
+#define STACKSTART	(2 * STACKSIZE)
 
 typedef struct {
 	unsigned long int regs[8];
