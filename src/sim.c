@@ -82,7 +82,7 @@ AFUNC(movl)
 	env->regs[ env->current_op - 0xb8 ] = env->current_args;
 }
 
-AFUNC(movw)
+AFUNC(winstr)
 {
 	int off = (env->current_args & 0x000000FF) - 0xb8;
 
@@ -207,17 +207,18 @@ AFUNC(memeax)
 AFUNC(sjmp)
 {
 	int off = 0;
-
+/*
 	if( 0x80 <= env->current_args && env->current_args <= 0xfd )
 		off = 0xff - env->current_args;
 	else if( 0x00 <= env->current_args && env->current_args <= 0x7f )
 		off = env->current_args;
-
+*/
+	off = (signed char)env->current_args;
 	env->eip += off;
 }
 
 AFUNC(ljmp)
-{
+{ /* To FIX */
 	env->eip += env->current_args;
 }
 
@@ -390,6 +391,68 @@ AFUNC(arithl)
 /*	arithmetic[ off ]( env, code, code[1] - foffset[ off ] ); */
 }
 
+AFUNC(arithb)
+{
+	unsigned char foffset[] = {
+		0xc0,
+		0xc8,
+		0xe0,
+		0xe8,
+		0xf0,
+		0xf8,
+		0xff,
+	};
+	int off, index;
+	unsigned char* code;
+	unsigned int arg = 0;
+
+	code = (unsigned char*)&env->current_args;
+
+#ifdef _DEBUG
+	int i;
+
+	for(i = 0;i < 2;i++)
+		printf("%02x", code[i] );
+
+	putchar('\n');
+#endif
+
+	off = getOffset( code[0], foffset, sizeof(foffset) );
+
+	index = code[0] - foffset[ off ];
+	arg = (unsigned int)code[1];
+
+#ifdef _DEBUG
+	printf("regs[ %d ] %c= 0x%x\n", index, ("+|&-^")[off], arg );
+#endif
+
+	switch( off ){
+		case 0:
+			env->regs[ index ] += arg;
+			break;
+		case 1:
+			env->regs[ index ] |= arg;
+			break;
+		case 2:
+			env->regs[ index ] &= arg;
+			break;
+		case 3:
+			env->regs[ index ] -= arg;
+			break;
+		case 4:
+			env->regs[ index ] ^= arg;
+			break;
+		case 5:
+			if( arg == env->regs[ index ] )
+				env->eflags = zeroBit(env->eflags, F_ZERO);
+			else
+				env->eflags = setBit(env->eflags, F_ZERO);
+			break;
+		default:
+			break;
+	}
+}
+
 AFUNC(mull)
 {
 	unsigned int addr;
@@ -421,6 +484,14 @@ AFUNC(mull)
 
 		env->eip--;
 	}
+}
+
+AFUNC(mulb)
+{
+	if( 0xe0 <= env->current_args && env->current_args <= 0xe8 )
+		env->regs[ R_EAX ] *= ((uchar*)&env->regs[ env->current_args - 0xe0 ])[0];
+	else
+		die( env, "SIGSEGV" );
 }
 
 AFUNC(rmadd)
@@ -483,6 +554,34 @@ AFUNC(rmadd)
 	}
 }
 
+AFUNC(rmaddb)
+{
+	unsigned char moffset[] = {
+		0x00,
+		0x08,
+		0x10,
+		0x18,
+		0x20,
+		0x28,
+		0x30,
+		0x38
+	};
+	int off = 0;
+	unsigned int addr;
+	uchar *creg;
+
+	off = getOffset( env->current_args, moffset, sizeof(moffset) );
+
+	if( env->regs[ env->current_args - moffset[off] ] < 0 || env->regs[ env->current_args - moffset[off] ] > env->mem_size )
+		die( env, "SIGSEGV" );
+	else {
+		creg = (uchar *) &(env->regs[ off ]);
+		addr = getAddr( env, env->regs[ env->current_args - moffset[ off ] ], sizeof(int) );
+		addr += creg[0];
+		setAddr( env, env->regs[ env->current_args - moffset[ off ] ], sizeof(int), addr );
+	}
+}
+
 AFUNC(mradd)
 {
 	unsigned char roffset[] = {
@@ -503,7 +602,8 @@ AFUNC(mradd)
 		0x60,
 		0x68,
 		0x70,
-		0x78
+		0x78,
+		0x7f
 	};
 	unsigned char rfoffset[] = {
 		0xc0,
@@ -638,7 +738,8 @@ AFUNC(mrsub)
 		0x60,
 		0x68,
 		0x70,
-		0x78
+		0x78,
+		0x7f
 	};
 	unsigned char rfoffset[] = {
 		0xc0,

@@ -78,7 +78,7 @@ struct assembly {
 
 AFUNC(movb);
 AFUNC(movl);
-AFUNC(movw);
+AFUNC(winstr);
 AFUNC(movr);
 AFUNC(movbmr);
 AFUNC(movbrm);
@@ -91,9 +91,12 @@ AFUNC(dec);
 AFUNC(idb);
 AFUNC(rref);
 AFUNC(arithl);
+AFUNC(arithb);
 AFUNC(mull);
+AFUNC(mulb);
 AFUNC(rmadd);
 AFUNC(mradd);
+AFUNC(rmaddb);
 AFUNC(rmsub);
 AFUNC(mrsub);
 AFUNC(int3);
@@ -116,7 +119,7 @@ struct assembly InstructionSet[] = {
 	{ '\xc6', 0, 2, movbmr },
 	{ '\x8a', 0, 2, movbrm },
 	{ '\xb8', '\xbf', 4, movl },
-	{ '\x66', 0, 3, movw },
+	{ '\x66', 0, 3, winstr },
 	{ '\x89', 0, 2, movr },
 	{ '\x90', 0, 0, nop },
 	{ '\xeb', 0, 1, sjmp },
@@ -127,11 +130,14 @@ struct assembly InstructionSet[] = {
 	{ '\xfe', 0, 1, idb },
 	{ '\x8b', 0, 2, rref },
 	{ '\x81', 0, 5, arithl },
+	{ '\x83', 0, 2, arithb },
 	{ '\xf7', 0, 2, mull },
+	{ '\xf6', 0, 1, mulb },
 	{ '\x03', 0, 2, rmadd },
 	{ '\x01', 0, 2, mradd },
 	{ '\x2b', 0, 2, rmsub },
 	{ '\x29', 0, 2, mrsub },
+	{ '\x00', 0, 1, rmaddb },
 	{ '\xcc', 0, 0, int3 },
 	{ '\x80', 0, 2, cmpb },
 	{ '\x91', '\x97', 0, xchg_eax },

@@ -18,9 +18,10 @@ func:
 	movl	$4, %eax
 	movl	$1, %ebx
 	movl	%ebp, %ecx
-	.rept 12
+/*	.rept 12
 	inc	%ecx
-	.endr
+	.endr */
+	add	$12, %ecx
 	movl	$4, %edx
 	int	$0x80
 
